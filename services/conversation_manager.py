@@ -1,91 +1,194 @@
 """
-Conversation Manager for handling interview flow
+Create a conversation manager class for TalentScout Hiring Assistant.
+
+Requirements:
+- Implement state machine for structured hiring workflow.
+- Manage stages:
+    greeting
+    collect_name
+    collect_email
+    collect_phone
+    collect_experience
+    collect_position
+    collect_location
+    collect_tech_stack
+    generate_questions
+    end
+- Store candidate data in dictionary.
+- Maintain conversation history list for LLM context.
+- Detect exit keywords: exit, quit, bye.
+- Provide methods:
+    get_current_prompt()
+    update_state(user_input)
+    is_conversation_over()
+- Follow clean architecture principles.
 """
-from services.llm_service import LLMService
-from services.data_handler import DataHandler
-from prompts.system_prompt import SYSTEM_PROMPT, INTERVIEWER_PROMPT
-from utils.validators import validate_input
+import re
 
 class ConversationManager:
-    """Manages the conversation flow during interviews"""
-    
+    """
+    Handles conversation flow and state transitions
+    for the TalentScout Hiring Assistant.
+    """
+
+    EXIT_KEYWORDS = ["exit", "quit", "bye"]
+
     def __init__(self):
-        self.llm_service = LLMService()
-        self.data_handler = DataHandler()
+        self.stage = "greeting"
+        self.candidate_data = {}
         self.conversation_history = []
-        self.current_candidate = None
+        self.pending_country_code = "+91"  # Default India country code
+        self.validation_error = ""  # Store validation error messages
+        
+        # Question tracking for staged question generation
+        self.questions_list = []  # Store all generated questions
+        self.current_question_index = -1  # Track which question we're on
+        self.answers = []  # Store answers to questions
+
+    def is_exit(self, user_input: str) -> bool:
+        return user_input.lower().strip() in self.EXIT_KEYWORDS
     
-    def start_interview(self):
-        """Start a new interview session"""
-        print("\nStarting interview session...")
-        print("Type 'exit' to end the interview\n")
-        
-        # Get candidate information
-        candidate_name = input("Candidate Name: ").strip()
-        position = input("Position Applied For: ").strip()
-        
-        if not validate_input(candidate_name) or not validate_input(position):
-            print("Invalid input. Please try again.")
-            return
-        
-        self.current_candidate = {
-            "name": candidate_name,
-            "position": position,
-            "responses": []
+    def validate_email(self, email: str) -> tuple:
+        """Validate email format"""
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(pattern, email):
+            return True, ""
+        return False, "❌ Invalid email format. Please use format: name@example.com"
+    
+    def validate_experience(self, experience: str) -> tuple:
+        """Validate years of experience (numbers only)"""
+        experience = experience.strip()
+        try:
+            years = float(experience)
+            if 0 <= years <= 70:
+                return True, ""
+            return False, "❌ Experience must be between 0 and 70 years"
+        except ValueError:
+            return False, "❌ Please enter only numbers for experience (e.g., 5 or 5.5)"
+    
+    def validate_phone_number(self, phone: str) -> bool:
+        """Validate that phone number contains exactly 10 digits"""
+        # Remove spaces and common separators
+        cleaned = phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        # Check if it's exactly 10 digits
+        return cleaned.isdigit() and len(cleaned) == 10
+
+    def set_questions(self, questions_list: list):
+        """Set the list of generated questions"""
+        self.questions_list = questions_list
+        self.current_question_index = 0  # Start at first question
+
+    def get_next_question(self) -> str:
+        """Get the current question to ask"""
+        if self.current_question_index < len(self.questions_list):
+            return self.questions_list[self.current_question_index]
+        return ""
+
+    def has_more_questions(self) -> bool:
+        """Check if there are more questions to ask"""
+        return self.current_question_index < len(self.questions_list)
+
+    def record_answer(self, answer: str):
+        """Record the answer to current question"""
+        self.answers.append(answer)
+        self.current_question_index += 1
+
+    def get_all_answers(self) -> str:
+        """Get formatted summary of all answers"""
+        result = "Interview Summary:\n\n"
+        for i, (question, answer) in enumerate(zip(self.questions_list, self.answers)):
+            result += f"Q{i+1}: {question}\nA: {answer}\n\n"
+        return result
+
+    def get_current_prompt(self) -> str:
+        prompts = {
+            "greeting": "Hello! Welcome to TalentScout Hiring Assistant. Let's begin your screening process.\nWhat is your full name?",
+            "collect_email": "Please provide your email address (e.g., name@example.com).",
+            "collect_phone": f"Please provide your 10-digit phone number (Country code: {self.pending_country_code})\nTo change country code, type it first (e.g., +1, +44, +91):",
+            "collect_experience": "How many years of professional experience do you have? (Enter numbers only, e.g., 5)",
+            "collect_position": "What position(s) are you applying for?",
+            "collect_location": "What is your current location?",
+            "collect_tech_stack": "Please list your tech stack (languages, frameworks, databases, tools).",
+            "end": "Thank you for your time. Our recruitment team will contact you soon."
         }
-        
-        # Initialize conversation
-        system_message = SYSTEM_PROMPT
-        position_prompt = INTERVIEWER_PROMPT.format(position=position)
-        
-        self.conversation_history = [
-            {"role": "system", "content": system_message},
-            {"role": "system", "content": position_prompt}
-        ]
-        
-        # Start interview loop
-        self.conduct_interview()
-    
-    def conduct_interview(self):
-        """Conduct the interview conversation"""
-        # Get initial greeting
-        greeting = self.llm_service.generate_response(self.conversation_history)
-        print(f"\nInterviewer: {greeting}\n")
-        self.conversation_history.append({"role": "assistant", "content": greeting})
-        
-        while True:
-            # Get candidate response
-            user_input = input("Candidate: ").strip()
+
+        return prompts.get(self.stage, "")
+
+    def update_state(self, user_input: str) -> tuple:
+        """
+        Update state based on user input.
+        Returns: (success: bool, error_message: str)
+        """
+        if self.is_exit(user_input):
+            self.stage = "end"
+            return True, ""
+
+        if self.stage == "greeting":
+            self.candidate_data["full_name"] = user_input
+            self.stage = "collect_email"
+            return True, ""
+
+        elif self.stage == "collect_email":
+            # Validate email format
+            is_valid, error_msg = self.validate_email(user_input)
+            if is_valid:
+                self.candidate_data["email"] = user_input
+                self.stage = "collect_phone"
+                return True, ""
+            else:
+                return False, error_msg
+
+        elif self.stage == "collect_phone":
+            # Check if user is changing country code
+            if user_input.startswith("+") and len(user_input) <= 4:
+                self.pending_country_code = user_input
+                # Stay in collect_phone stage to get the actual number
+                return True, f"✓ Country code changed to {self.pending_country_code}. Now please enter your 10-digit phone number."
             
-            if user_input.lower() == 'exit':
-                self.end_interview()
-                break
-            
-            if not validate_input(user_input):
-                print("Please provide a valid response.\n")
-                continue
-            
-            # Add to conversation history
-            self.conversation_history.append({"role": "user", "content": user_input})
-            self.current_candidate["responses"].append(user_input)
-            
-            # Get AI response
-            ai_response = self.llm_service.generate_response(self.conversation_history)
-            print(f"\nInterviewer: {ai_response}\n")
-            self.conversation_history.append({"role": "assistant", "content": ai_response})
-    
-    def end_interview(self):
-        """End the interview and save data"""
-        print("\nEnding interview...")
+            # Validate phone number (must be 10 digits)
+            if self.validate_phone_number(user_input):
+                cleaned_phone = user_input.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                self.candidate_data["phone"] = f"{self.pending_country_code} {cleaned_phone}"
+                self.candidate_data["country_code"] = self.pending_country_code
+                self.stage = "collect_experience"
+                return True, ""
+            else:
+                # Invalid phone - stay in same stage
+                return False, "❌ Please enter exactly 10 digits for phone number (without country code)"
+
+        elif self.stage == "collect_experience":
+            # Validate experience (numbers only)
+            is_valid, error_msg = self.validate_experience(user_input)
+            if is_valid:
+                self.candidate_data["experience"] = user_input
+                self.stage = "collect_position"
+                return True, ""
+            else:
+                return False, error_msg
+
+        elif self.stage == "collect_position":
+            self.candidate_data["desired_position"] = user_input
+            self.stage = "collect_location"
+            return True, ""
+
+        elif self.stage == "collect_location":
+            self.candidate_data["location"] = user_input
+            self.stage = "collect_tech_stack"
+            return True, ""
+
+        elif self.stage == "collect_tech_stack":
+            self.candidate_data["tech_stack"] = user_input
+            self.stage = "generate_questions"
+            return True, ""
+
+        elif self.stage == "generate_questions":
+            # In this stage, we handle questions one by one in app.py
+            # Just record the answer here
+            self.record_answer(user_input)
+
+            return True, ""
         
-        if self.current_candidate:
-            # Save candidate data
-            self.data_handler.save_candidate(self.current_candidate)
-            print(f"Interview data saved for {self.current_candidate['name']}")
-        
-        print("Thank you for using TalentScout AI Hiring Assistant!\n")
-    
-    def get_conversation_summary(self) -> str:
-        """Get a summary of the conversation"""
-        return "\n".join([f"{msg['role']}: {msg['content']}" 
-                         for msg in self.conversation_history])
+        return True, ""
+
+    def is_conversation_over(self) -> bool:
+        return self.stage == "end"
