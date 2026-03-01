@@ -2,6 +2,10 @@
 
 An intelligent, AI-powered hiring assistant that conducts structured interviews with candidates and generates tailored technical questions based on their tech stack.
 
+## 🌐 Live Application
+
+👉 [Click here to use TalentScout AI Hiring Assistant](https://talentscout-ai-hiring-assistant-viz.streamlit.app/)
+
 ## 📋 Features
 
 ### Core Functionality
@@ -123,7 +127,13 @@ streamlit run app.py
 
 ## 🎥 Demo
 
-(Add Loom or Streamlit Cloud link here)
+https://drive.google.com/file/d/1LPjxuM548tV-MvQnSVio5yZW3S6zRMAl/view?usp=sharing
+
+## 📸 Sample Output Screenshot:
+
+<img width="806" height="683" alt="image" src="https://github.com/user-attachments/assets/e4bbd7bd-3bf1-4dcf-8da2-93816d20b045" />
+
+
 
 ## 🎯 After Task 8 — Your Evaluation Level
 
@@ -205,29 +215,6 @@ DEBUG=True                      # Debug mode
 APP_NAME=TalentScout AI Hiring Assistant
 ```
 
-## 🧪 Testing
-
-Run comprehensive tests:
-
-```bash
-# Test conversation flow with validation
-python test_conversation.py
-
-# Test email and experience validation
-python test_validations.py
-
-# Test data storage
-python test_data_storage.py
-
-# Test full system
-python test_full_system.py
-
-# Verify all components
-python verify_app.py
-```
-
-All tests are currently **passing ✅**
-
 ## 🎯 Evaluation Criteria Met
 
 ### Technical Proficiency (40%)
@@ -266,32 +253,69 @@ All tests are currently **passing ✅**
 pip install streamlit
 ```
 
-### OpenAI API errors
-- Check API key in `.env`
-- Verify you have API credits
-- Check rate limits
+### Gemini API Errors
 
+- Ensure `GEMINI_API_KEY` is correctly set in your `.env` file
+- Verify your Google AI Studio project is active
+- Check if the selected model (e.g., `gemini-2.5-flash`) is available
+- Ensure you have not exceeded rate limits or quota
+- Confirm internet connectivity
 ### Technical question generation fails
 - System saves candidate data even on error
 - Check internet connection
 - Verify API key validity
 
+  
 ## 📞 Support
 
-For issues or questions:
-1. Check error messages in console
-2. Review `.env` configuration
+If you encounter any issues:
+
+1. Check error messages in the console
+2. Review `.env` configuration (GEMINI_API_KEY, model name)
 3. Run verification tests
-4. Check OpenAI account status
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
-## 📅 Version
-
-Version 1.0 - March 2026
+4. Check Gemini API quota in Google AI Studio
 
 ---
 
-**Built with ❤️ for intelligent hiring automation**
+## 🤝 Open Source Contribution
+
+Contributions are welcome and encouraged!
+
+If you'd like to improve the project:
+
+1. Fork the repository
+2. Create a new feature branch
+3. Commit your changes with clear messages
+4. Submit a Pull Request
+
+You can contribute by:
+- Improving UI/UX
+- Enhancing prompt engineering
+- Adding candidate scoring logic
+- Building an admin dashboard
+- Adding multilingual support
+- Optimizing validation logic
+
+---
+
+## 📬 Contact
+
+For collaboration, internship opportunities, or project discussions:
+
+📧 **mohammedvijahath@gmail.com**
+
+---
+
+## 📄 License
+
+MIT License — See `LICENSE` file for details.
+
+---
+
+## 📅 Version
+
+Version 1.0 — March 2026
+
+---
+
+**Built with ❤️ for intelligent AI-powered hiring automation**
