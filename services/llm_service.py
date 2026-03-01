@@ -1,56 +1,49 @@
 """
-LLM Service for handling OpenAI API interactions
+Create a reusable LLM service class for OpenAI.
+
+Requirements:
+- Load API key from config.settings
+- Use GPT-4o-mini model
+- Create method: generate_response(messages: list) -> str
+- Handle exceptions safely
+- Return only clean text response
+- Add proper docstrings
+- Follow clean architecture principles
 """
-import openai
-from config.settings import Settings
-from utils.fallback import handle_api_error
+from openai import OpenAI
+from config.settings import OPENAI_API_KEY, MODEL_NAME, TEMPERATURE
+
 
 class LLMService:
-    """Service for interacting with OpenAI's LLM"""
-    
+    """
+    LLMService handles all interactions with the OpenAI model.
+    It abstracts API calls and provides a clean interface
+    for generating responses.
+    """
+
     def __init__(self):
-        self.settings = Settings()
-        openai.api_key = self.settings.OPENAI_API_KEY
-        self.model = self.settings.MODEL_NAME
-        self.temperature = self.settings.TEMPERATURE
-        self.max_tokens = self.settings.MAX_TOKENS
-    
-    def generate_response(self, messages: list, **kwargs) -> str:
+        if not OPENAI_API_KEY:
+            raise ValueError("OpenAI API key not found. Please set it in .env file.")
+
+        self.client = OpenAI(api_key=OPENAI_API_KEY)
+
+    def generate_response(self, messages: list) -> str:
         """
-        Generate a response from the LLM
-        
-        Args:
-            messages: List of message dictionaries with 'role' and 'content'
-            **kwargs: Additional parameters for the API call
-        
-        Returns:
-            Generated response text
+        Sends structured conversation messages to the OpenAI model
+        and returns the generated response text.
+
+        :param messages: List of message dictionaries in OpenAI format
+        :return: Model response as string
         """
         try:
-            response = openai.ChatCompletion.create(
-                model=kwargs.get('model', self.model),
+            response = self.client.chat.completions.create(
+                model=MODEL_NAME,
                 messages=messages,
-                temperature=kwargs.get('temperature', self.temperature),
-                max_tokens=kwargs.get('max_tokens', self.max_tokens)
+                temperature=TEMPERATURE
             )
+
             return response.choices[0].message.content.strip()
-        
+
         except Exception as e:
-            return handle_api_error(e)
-    
-    def generate_interview_question(self, context: dict) -> str:
-        """Generate an interview question based on context"""
-        messages = [
-            {"role": "system", "content": "You are generating interview questions."},
-            {"role": "user", "content": f"Generate a question for: {context}"}
-        ]
-        return self.generate_response(messages)
-    
-    def evaluate_response(self, question: str, answer: str) -> dict:
-        """Evaluate a candidate's response"""
-        messages = [
-            {"role": "system", "content": "You are evaluating interview responses."},
-            {"role": "user", "content": f"Question: {question}\nAnswer: {answer}\n\nProvide evaluation."}
-        ]
-        evaluation = self.generate_response(messages)
-        return {"evaluation": evaluation}
+            print(f"LLM Error: {e}")
+            return "I'm experiencing technical difficulties. Please try again later."
