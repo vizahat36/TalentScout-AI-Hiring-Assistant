@@ -91,3 +91,27 @@ def validate_name(name: str) -> bool:
     # Allow letters, spaces, hyphens, and apostrophes
     pattern = r"^[a-zA-Z\s\-']+$"
     return bool(re.match(pattern, name))
+
+
+def validate_experience(experience: str) -> bool:
+    """
+    Validate years of experience (must be a number)
+    
+    Args:
+        experience: Years of experience to validate
+    
+    Returns:
+        True if valid number, False otherwise
+    """
+    if not experience or not isinstance(experience, str):
+        return False
+    
+    experience = experience.strip()
+    
+    # Check if it's a valid number (integer or decimal)
+    try:
+        years = float(experience)
+        # Must be between 0 and 70 years
+        return 0 <= years <= 70
+    except ValueError:
+        return False
